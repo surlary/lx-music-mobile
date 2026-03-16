@@ -162,7 +162,7 @@ diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mo
 \ No newline at end of file
 diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/components/OnlineList/ListMenu.tsx lx/src/components/OnlineList/ListMenu.tsx
 --- lx-music-mobile-master/src/components/OnlineList/ListMenu.tsx	2026-02-16 20:13:37.000000000 +0800
-+++ lx/src/components/OnlineList/ListMenu.tsx	2026-03-16 14:53:56.000000000 +0800
++++ lx/src/components/OnlineList/ListMenu.tsx	2026-03-16 18:29:54.000000000 +0800
 @@ -2,6 +2,7 @@
  import { useI18n } from '@/lang'
  import Menu, { type MenuType, type Position } from '@/components/common/Menu'
@@ -176,7 +176,7 @@ diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mo
        { action: 'play', label: t('play') },
        { action: 'playLater', label: t('play_later') },
 -      // { action: 'download', label: '下载' },
-+      { action: 'download', label: t('download') },
++      { action: 'download', label: 'download' },
        { action: 'add', label: t('add_to') },
        { action: 'copyName', label: t('copy_name') },
        { action: 'musicSourceDetail', label: t('music_source_detail') },
@@ -597,9 +597,88 @@ diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mo
 +  },
 +})
 \ No newline at end of file
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/screens/Home/Vertical/Main.tsx lx/src/screens/Home/Vertical/Main.tsx
+--- lx-music-mobile-master/src/screens/Home/Vertical/Main.tsx	2026-02-16 20:13:37.000000000 +0800
++++ lx/src/screens/Home/Vertical/Main.tsx	2026-03-16 18:45:55.000000000 +0800
+@@ -5,6 +5,7 @@
+ import Mylist from '../Views/Mylist'
+ import Leaderboard from '../Views/Leaderboard'
+ import Setting from '../Views/Setting'
++import Download from '../Views/Download'
+ import commonState, { type InitState as CommonState } from '@/store/common/state'
+ import { createStyle } from '@/utils/tools'
+ import PagerView, { type PageScrollStateChangedNativeEvent, type PagerViewOnPageSelectedEvent } from 'react-native-pager-view'
+@@ -178,12 +179,49 @@
+   return visible ? component : null
+ }
+ 
++const DownloadPage = () => {
++  const [visible, setVisible] = useState(commonState.navActiveId == 'nav_download')
++  const component = useMemo(() => <Download />, [])
++  useEffect(() => {
++    let currentId: CommonState['navActiveId'] = commonState.navActiveId
++    const handleNavIdUpdate = (id: CommonState['navActiveId']) => {
++      currentId = id
++      if (id == 'nav_download') {
++        requestAnimationFrame(() => {
++          setVisible(true)
++        })
++      }
++    }
++    const handleHide = () => {
++      if (currentId != 'nav_setting') return
++      setVisible(false)
++    }
++    const handleConfigUpdated = (keys: Array<keyof LX.AppSetting>) => {
++      if (keys.some(k => hideKeys.includes(k))) handleHide()
++    }
++    global.state_event.on('navActiveIdUpdated', handleNavIdUpdate)
++    global.state_event.on('themeUpdated', handleHide)
++    global.state_event.on('languageChanged', handleHide)
++    global.state_event.on('configUpdated', handleConfigUpdated)
++
++    return () => {
++      global.state_event.off('navActiveIdUpdated', handleNavIdUpdate)
++      global.state_event.off('themeUpdated', handleHide)
++      global.state_event.off('languageChanged', handleHide)
++      global.state_event.on('configUpdated', handleConfigUpdated)
++    }
++  }, [])
++
++  return visible ? component : null
++}
++
+ const viewMap = {
+   nav_search: 0,
+   nav_songlist: 1,
+   nav_top: 2,
+   nav_love: 3,
+   nav_setting: 4,
++  nav_download: 5,
+ }
+ const indexMap = [
+   'nav_search',
+@@ -191,6 +229,7 @@
+   'nav_top',
+   'nav_love',
+   'nav_setting',
++  'nav_download',
+ ] as const
+ 
+ const Main = () => {
+@@ -289,6 +328,9 @@
+       <View collapsable={false} key="nav_setting" style={styles.pageStyle}>
+         <SettingPage />
+       </View>
++      <View collapsable={false} key="nav_download" style={styles.pageStyle}>
++        <DownloadPage />
++      </View>
+       {/* <View collapsable={false} key="nav_search" style={styles.pageStyle}>
+         <Search />
+       </View>
 diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/screens/Home/Views/Mylist/MusicList/ListMenu.tsx lx/src/screens/Home/Views/Mylist/MusicList/ListMenu.tsx
 --- lx-music-mobile-master/src/screens/Home/Views/Mylist/MusicList/ListMenu.tsx	2026-02-16 20:13:37.000000000 +0800
-+++ lx/src/screens/Home/Views/Mylist/MusicList/ListMenu.tsx	2026-03-16 14:55:05.000000000 +0800
++++ lx/src/screens/Home/Views/Mylist/MusicList/ListMenu.tsx	2026-03-16 18:29:07.000000000 +0800
 @@ -3,6 +3,7 @@
  import Menu, { type Menus, type MenuType, type Position } from '@/components/common/Menu'
  import { hasDislike } from '@/core/dislikeList'
@@ -613,7 +692,7 @@ diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mo
        { action: 'play', label: t('play') },
        { action: 'playLater', label: t('play_later') },
 -      // { action: 'download', label: '下载' },
-+      { action: 'download', label: t('download') },
++      { action: 'download', label: 'download' },
        { action: 'add', label: t('add_to') },
        { action: 'move', label: t('move_to') },
        { action: 'changePosition', label: t('change_position') },
