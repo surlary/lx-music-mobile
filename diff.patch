@@ -631,6 +631,33 @@ diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mo
        case 'add':
          props.onAdd(selectInfo)
          // isMoveRef.current = false
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/screens/Home/Views/Setting/Main.tsx lx/src/screens/Home/Views/Setting/Main.tsx
+--- lx-music-mobile-master/src/screens/Home/Views/Setting/Main.tsx	2026-02-16 20:13:37.000000000 +0800
++++ lx/src/screens/Home/Views/Setting/Main.tsx	2026-03-16 18:03:58.000000000 +0800
+@@ -10,6 +10,7 @@
+ import Other from './settings/Other'
+ import Version from './settings/Version'
+ import About from './settings/About'
++import DownloadPathSetting from '@/screens/Setting/DownloadPathSetting'
+ 
+ export const SETTING_SCREENS = [
+   'basic',
+@@ -22,6 +23,7 @@
+   'other',
+   'version',
+   'about',
++  'download_path',
+ ] as const
+ 
+ export type SettingScreenIds = typeof SETTING_SCREENS[number]
+@@ -57,6 +59,7 @@
+       case 'other': return <Other />
+       case 'version': return <Version />
+       case 'about': return <About />
++      case 'download_path': return <DownloadPathSetting />
+       case 'basic':
+       default: return <Basic />
+     }
 diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/screens/Setting/DownloadPathSetting.tsx lx/src/screens/Setting/DownloadPathSetting.tsx
 --- lx-music-mobile-master/src/screens/Setting/DownloadPathSetting.tsx	1970-01-01 08:00:00.000000000 +0800
 +++ lx/src/screens/Setting/DownloadPathSetting.tsx	2026-03-16 16:11:15.000000000 +0800
