@@ -1,0 +1,709 @@
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/components/DownloadList/List.tsx lx/src/components/DownloadList/List.tsx
+--- lx-music-mobile-master/src/components/DownloadList/List.tsx	1970-01-01 08:00:00.000000000 +0800
++++ lx/src/components/DownloadList/List.tsx	2026-03-16 14:58:20.000000000 +0800
+@@ -0,0 +1,53 @@
++import { View, Text, FlatList, StyleSheet } from 'react-native'
++import { useI18n } from '@/lang'
++import { useDownloadList } from '@/store/download/hook'
++import { useTheme } from '@/theme'
++import ListItem from './ListItem'
++
++interface Props {
++  onItemPress: (item: LX.Download.ListItem) => void
++  onItemLongPress: (item: LX.Download.ListItem) => void
++}
++
++export default ({ onItemPress, onItemLongPress }: Props) => {
++  const theme = useTheme()
++  const t = useI18n()
++  const { list } = useDownloadList()
++
++  const renderItem = ({ item }: { item: LX.Download.ListItem }) => (
++    <ListItem
++      item={item}
++      onPress={onItemPress}
++      onLongPress={onItemLongPress}
++    />
++  )
++
++  if (list.length === 0) {
++    return (
++      <View style={[styles.emptyContainer, { backgroundColor: theme['main-background-color'] }]}>
++        <Text style={{ color: theme['main-subtitle_font-color'] }}>
++          {t('download_list_empty')}
++        </Text>
++      </View>
++    )
++  }
++
++  return (
++    <FlatList
++      data={list}
++      renderItem={renderItem}
++      keyExtractor={item => item.id}
++      contentContainerStyle={{ backgroundColor: theme['main-background-color'] }}
++      showsVerticalScrollIndicator={false}
++    />
++  )
++}
++
++const styles = StyleSheet.create({
++  emptyContainer: {
++    flex: 1,
++    justifyContent: 'center',
++    alignItems: 'center',
++    paddingTop: 100,
++  },
++})
+\ No newline at end of file
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/components/DownloadList/ListItem.tsx lx/src/components/DownloadList/ListItem.tsx
+--- lx-music-mobile-master/src/components/DownloadList/ListItem.tsx	1970-01-01 08:00:00.000000000 +0800
++++ lx/src/components/DownloadList/ListItem.tsx	2026-03-16 14:57:48.000000000 +0800
+@@ -0,0 +1,99 @@
++import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
++import { useI18n } from '@/lang'
++import { useTheme } from '@/theme'
++
++interface Props {
++  item: LX.Download.ListItem
++  onLongPress: (item: LX.Download.ListItem) => void
++  onPress: (item: LX.Download.ListItem) => void
++}
++
++export default ({ item, onLongPress, onPress }: Props) => {
++  const theme = useTheme()
++  const t = useI18n()
++
++  const getStatusText = (status: LX.Download.DownloadTaskStatus) => {
++    switch (status) {
++      case 'waiting':
++        return t('download_waiting')
++      case 'run':
++        return t('download_running')
++      case 'pause':
++        return t('download_paused')
++      case 'error':
++        return t('download_error')
++      case 'completed':
++        return t('download_completed')
++      default:
++        return status
++    }
++  }
++
++  const getDisplayInfo = () => {
++    if (item.status === 'completed') {
++      return t('download_completed')
++    } else if (item.status === 'error') {
++      return item.statusText
++    } else {
++      return `${item.metadata.musicInfo.singer} • ${item.progress}% • ${item.speed}`
++    }
++  }
++
++  return (
++    <TouchableOpacity
++      style={[styles.container, { backgroundColor: theme['list-item_background-color'] }]}
++      onPress={() => onPress(item)}
++      onLongPress={() => onLongPress(item)}
++    >
++      <View style={styles.leftContainer}>
++        <Text
++          style={[styles.title, { color: theme['list-item_font-color'] }]}
++          numberOfLines={1}
++        >
++          {item.metadata.musicInfo.name}
++        </Text>
++        <Text
++          style={[styles.info, { color: theme['list-item-subtitle_font-color'] }]}
++          numberOfLines={1}
++        >
++          {getDisplayInfo()}
++        </Text>
++      </View>
++      <View style={styles.rightContainer}>
++        <Text style={[styles.status, { color: theme['list-item-subtitle_font-color'] }]}>
++          {getStatusText(item.status)}
++        </Text>
++      </View>
++    </TouchableOpacity>
++  )
++}
++
++const styles = StyleSheet.create({
++  container: {
++    flexDirection: 'row',
++    alignItems: 'center',
++    paddingHorizontal: 15,
++    paddingVertical: 10,
++    minHeight: 54,
++  },
++  leftContainer: {
++    flex: 1,
++    marginRight: 10,
++    justifyContent: 'center',
++  },
++  rightContainer: {
++    justifyContent: 'center',
++    alignItems: 'flex-end',
++  },
++  title: {
++    fontSize: 15,
++    fontWeight: 'normal',
++  },
++  info: {
++    fontSize: 12,
++    marginTop: 3,
++  },
++  status: {
++    fontSize: 12,
++  },
++})
+\ No newline at end of file
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/components/OnlineList/ListMenu.tsx lx/src/components/OnlineList/ListMenu.tsx
+--- lx-music-mobile-master/src/components/OnlineList/ListMenu.tsx	2026-02-16 20:13:37.000000000 +0800
++++ lx/src/components/OnlineList/ListMenu.tsx	2026-03-16 14:53:56.000000000 +0800
+@@ -2,6 +2,7 @@
+ import { useI18n } from '@/lang'
+ import Menu, { type MenuType, type Position } from '@/components/common/Menu'
+ import { hasDislike } from '@/core/dislikeList'
++import { addMusicToDownloadList } from '@/core/download'
+ 
+ export interface SelectInfo {
+   musicInfo: LX.Music.MusicInfoOnline
+@@ -52,7 +53,7 @@
+     return [
+       { action: 'play', label: t('play') },
+       { action: 'playLater', label: t('play_later') },
+-      // { action: 'download', label: '下载' },
++      { action: 'download', label: t('download') },
+       { action: 'add', label: t('add_to') },
+       { action: 'copyName', label: t('copy_name') },
+       { action: 'musicSourceDetail', label: t('music_source_detail') },
+@@ -69,6 +70,10 @@
+       case 'playLater':
+         props.onPlayLater(selectInfo)
+         break
++      case 'download':
++        // 添加下载功能
++        void addMusicToDownloadList(selectInfo.musicInfo)
++        break
+       case 'add':
+         props.onAdd(selectInfo)
+         break
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/config/constant.ts lx/src/config/constant.ts
+--- lx-music-mobile-master/src/config/constant.ts	2026-02-16 20:13:37.000000000 +0800
++++ lx/src/config/constant.ts	2026-03-16 14:59:40.000000000 +0800
+@@ -103,7 +103,7 @@
+   { id: 'nav_songlist', icon: 'album' },
+   { id: 'nav_top', icon: 'leaderboard' },
+   { id: 'nav_love', icon: 'love' },
+-  // { id: 'download', icon: 'download-2' },
++  { id: 'nav_download', icon: 'download-2' },
+   { id: 'nav_setting', icon: 'setting' },
+ ] as const
+ 
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/core/download.ts lx/src/core/download.ts
+--- lx-music-mobile-master/src/core/download.ts	1970-01-01 08:00:00.000000000 +0800
++++ lx/src/core/download.ts	2026-03-16 14:51:33.000000000 +0800
+@@ -0,0 +1,318 @@
++import { LIST_IDS } from '@/config/constant'
++import listAction from '@/store/list/action'
++import listState from '@/store/list/state'
++import { fixNewMusicInfoQuality } from '@/utils'
++import { saveListPrevSelectId } from '@/utils/data'
++import { downloadFile, stopDownload, temporaryDirectoryPath } from '@/utils/fs'
++import { getMusicUrl } from './music'
++import type { DownloadBeginCallbackResult, DownloadProgressCallbackResult } from 'react-native-fs'
++
++// 下载任务状态枚举
++export type DownloadTaskStatus = 'waiting' | 'downloading' | 'paused' | 'completed' | 'error'
++
++// 下载任务接口
++interface DownloadTask {
++  id: string
++  musicInfo: LX.Music.MusicInfoOnline
++  status: DownloadTaskStatus
++  progress: number
++  speed: string
++  downloaded: number
++  total: number
++  filePath?: string
++  error?: string
++  jobId?: number // 下载任务ID
++}
++
++// 全局下载任务管理器
++class DownloadManager {
++  private tasks: Map<string, DownloadTask> = new Map()
++  private eventEmitter: {
++    on: (event: string, callback: any) => void
++    off: (event: string, callback: any) => void
++    emit: (event: string, ...args: any[]) => void
++  } = {
++    on: (event: string, callback: any) => {},
++    off: (event: string, callback: any) => {},
++    emit: (event: string, ...args: any[]) => {}
++  }
++  private activeDownloads = 0
++  private maxConcurrentDownloads = 3 // 最大并发下载数
++
++  // 添加下载任务
++  async addDownloadTask(musicInfo: LX.Music.MusicInfoOnline) {
++    const taskId = musicInfo.id
++    
++    // 检查任务是否已存在
++    if (this.tasks.has(taskId)) {
++      const task = this.tasks.get(taskId)!
++      if (task.status === 'completed') {
++        return // 已完成的任务不需要重新下载
++      }
++      // 如果是其他状态，更新任务信息
++      task.musicInfo = musicInfo
++      task.status = 'waiting'
++      task.progress = 0
++      task.downloaded = 0
++      task.total = 0
++      this.updateTask(task)
++      return
++    }
++
++    const task: DownloadTask = {
++      id: taskId,
++      musicInfo,
++      status: 'waiting',
++      progress: 0,
++      speed: '0 KB/s',
++      downloaded: 0,
++      total: 0,
++    }
++
++    this.tasks.set(taskId, task)
++    this.updateTask(task)
++    
++    // 如果有空闲的下载槽位，立即开始下载
++    if (this.activeDownloads < this.maxConcurrentDownloads) {
++      this.processNextTask()
++    }
++  }
++
++  // 处理下一个等待中的任务
++  private async processNextTask() {
++    if (this.activeDownloads >= this.maxConcurrentDownloads) {
++      return // 没有空闲的下载槽位
++    }
++
++    // 查找下一个等待中的任务
++    for (const task of this.tasks.values()) {
++      if (task.status === 'waiting') {
++        this.startDownload(task)
++        break
++      }
++    }
++  }
++
++  // 开始下载任务
++  private async startDownload(task: DownloadTask) {
++    if (task.status !== 'waiting') return
++
++    this.activeDownloads++
++    task.status = 'downloading'
++    this.updateTask(task)
++
++    try {
++      // 获取音乐URL
++      const musicUrl = await getMusicUrl({
++        musicInfo: task.musicInfo,
++        quality: '128k' as LX.Quality, // 默认质量
++        isRefresh: false,
++      })
++
++      if (!musicUrl) {
++        throw new Error('无法获取音乐下载链接')
++      }
++
++      // 构建文件路径
++      const fileName = this.generateFileName(task.musicInfo)
++      const filePath = `${temporaryDirectoryPath}/downloads/${fileName}`
++      
++      // 确保下载目录存在
++      await this.ensureDownloadDirectoryExists()
++      
++      // 开始下载
++      const downloadResult = downloadFile(musicUrl, filePath, {
++        progress: (res: DownloadProgressCallbackResult) => {
++          const progress = Math.round((res.bytesWritten / res.contentLength) * 100)
++          const speed = this.formatBytes(res.bytesWritten / (res.time / 1000))
++          
++          task.progress = progress
++          task.downloaded = res.bytesWritten
++          task.total = res.contentLength
++          task.speed = `${speed}/s`
++          
++          this.updateTask(task)
++        },
++        progressInterval: 500,
++      })
++
++      task.jobId = downloadResult.jobId
++      const result = await downloadResult.promise
++      
++      if (result.statusCode === 200) {
++        task.status = 'completed'
++        task.filePath = filePath
++        task.progress = 100
++        this.updateTask(task)
++      } else {
++        throw new Error(`下载失败，状态码: ${result.statusCode}`)
++      }
++    } catch (error: any) {
++      task.status = 'error'
++      task.error = error.message || '未知错误'
++      this.updateTask(task)
++    } finally {
++      this.activeDownloads--
++      this.eventEmitter.emit('taskCompleted', task)
++      
++      // 处理下一个任务
++      this.processNextTask()
++    }
++  }
++
++  // 确保下载目录存在
++  private async ensureDownloadDirectoryExists() {
++    const downloadDir = `${temporaryDirectoryPath}/downloads`
++    // 检查目录是否存在，如果不存在则创建
++    // 注意：这里需要使用适当的文件系统API来检查和创建目录
++  }
++
++  // 生成文件名
++  private generateFileName(musicInfo: LX.Music.MusicInfoOnline): string {
++    // 使用歌名-歌手作为文件名，并清理特殊字符
++    const cleanName = musicInfo.name.replace(/[<>:"/\\|?*]/g, '_')
++    const cleanSinger = musicInfo.singer.replace(/[<>:"/\\|?*]/g, '_')
++    return `${cleanName}-${cleanSinger}.mp3`.substring(0, 200) // 限制文件名长度
++  }
++
++  // 格式化字节大小
++  private formatBytes(bytes: number): string {
++    if (bytes === 0) return '0 Bytes'
++    const k = 1024
++    const sizes = ['Bytes', 'KB', 'MB', 'GB']
++    const i = Math.floor(Math.log(bytes) / Math.log(k))
++    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
++  }
++
++  // 暂停下载任务
++  pauseTask(taskId: string) {
++    const task = this.tasks.get(taskId)
++    if (task && task.status === 'downloading' && task.jobId !== undefined) {
++      stopDownload(task.jobId)
++      task.status = 'paused'
++      this.updateTask(task)
++    }
++  }
++
++  // 恢复下载任务
++  resumeTask(taskId: string) {
++    const task = this.tasks.get(taskId)
++    if (task && task.status === 'paused') {
++      task.status = 'waiting' // 设置为等待状态，等待处理
++      this.updateTask(task)
++      
++      // 如果有空闲的下载槽位，立即开始下载
++      if (this.activeDownloads < this.maxConcurrentDownloads) {
++        this.startDownload(task)
++      }
++    }
++  }
++
++  // 删除下载任务
++  removeTask(taskId: string) {
++    const task = this.tasks.get(taskId)
++    if (task) {
++      if (task.status === 'downloading' && task.jobId !== undefined) {
++        stopDownload(task.jobId)
++      }
++      this.tasks.delete(taskId)
++      this.eventEmitter.emit('taskRemoved', taskId)
++    }
++  }
++
++  // 获取所有任务
++  getAllTasks(): DownloadTask[] {
++    return Array.from(this.tasks.values())
++  }
++
++  // 获取特定任务
++  getTask(taskId: string): DownloadTask | undefined {
++    return this.tasks.get(taskId)
++  }
++
++  // 更新任务状态
++  private updateTask(task: DownloadTask) {
++    this.tasks.set(task.id, { ...task })
++    this.eventEmitter.emit('taskUpdated', task)
++    
++    // 更新下载列表UI
++    app_event.downloadListUpdate()
++  }
++
++  // 监听任务更新
++  onTaskUpdated(callback: (task: DownloadTask) => void) {
++    this.eventEmitter.on('taskUpdated', callback)
++  }
++
++  offTaskUpdated(callback: (task: DownloadTask) => void) {
++    this.eventEmitter.off('taskUpdated', callback)
++  }
++
++  // 监听任务完成
++  onTaskCompleted(callback: (task: DownloadTask) => void) {
++    this.eventEmitter.on('taskCompleted', callback)
++  }
++
++  offTaskCompleted(callback: (task: DownloadTask) => void) {
++    this.eventEmitter.off('taskCompleted', callback)
++  }
++}
++
++// 创建下载管理器实例
++export const downloadManager = new DownloadManager()
++
++// 添加歌曲到下载列表的便捷函数
++export const addMusicToDownloadList = async (musicInfo: LX.Music.MusicInfoOnline) => {
++  await downloadManager.addDownloadTask(musicInfo)
++}
++
++// 获取下载列表
++export const getDownloadList = (): LX.Download.ListItem[] => {
++  return downloadManager.getAllTasks().map(task => {
++    return {
++      id: task.id,
++      isComplate: task.status === 'completed',
++      status: task.status as LX.Download.DownloadTaskStatus,
++      statusText: task.error || getStatusText(task.status),
++      downloaded: task.downloaded,
++      total: task.total,
++      progress: task.progress,
++      speed: task.speed,
++      metadata: {
++        musicInfo: task.musicInfo,
++        url: '', // 实际下载完成后可能会更新
++        quality: '128k' as LX.Quality,
++        ext: 'mp3' as LX.Download.FileExt,
++        fileName: downloadManager['generateFileName'](task.musicInfo),
++        filePath: task.filePath || '',
++      },
++    }
++  })
++}
++
++// 获取状态文本
++const getStatusText = (status: DownloadTaskStatus): string => {
++  const statusMap: Record<DownloadTaskStatus, string> = {
++    waiting: '等待中',
++    downloading: '下载中',
++    paused: '已暂停',
++    completed: '已完成',
++    error: '下载失败',
++  }
++  return statusMap[status] || status
++}
++
++// 暂停下载任务
++export const pauseDownloadTask = (taskId: string) => {
++  downloadManager.pauseTask(taskId)
++}
++
++// 恢复下载任务
++export const resumeDownloadTask = (taskId: string) => {
++  downloadManager.resumeTask(taskId)
++}
++
++// 删除下载任务
++export const removeDownloadTask = (taskId: string) => {
++  downloadManager.removeTask(taskId)
++}
+\ No newline at end of file
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/screens/Download/index.tsx lx/src/screens/Download/index.tsx
+--- lx-music-mobile-master/src/screens/Download/index.tsx	1970-01-01 08:00:00.000000000 +0800
++++ lx/src/screens/Download/index.tsx	2026-03-16 14:58:56.000000000 +0800
+@@ -0,0 +1,49 @@
++import { View, Text, StyleSheet } from 'react-native'
++import { useI18n } from '@/lang'
++import { useTheme } from '@/theme'
++import List from '@/components/DownloadList/List'
++
++export default () => {
++  const theme = useTheme()
++  const t = useI18n()
++
++  const handleItemPress = (item: LX.Download.ListItem) => {
++    // 处理下载项点击事件
++    console.log('Download item pressed:', item)
++  }
++
++  const handleItemLongPress = (item: LX.Download.ListItem) => {
++    // 处理下载项长按事件
++    console.log('Download item long pressed:', item)
++  }
++
++  return (
++    <View style={[styles.container, { backgroundColor: theme['main-background-color'] }]}>
++      <View style={styles.header}>
++        <Text style={[styles.headerTitle, { color: theme['main-font-color'] }]}>
++          {t('download_title')}
++        </Text>
++      </View>
++      <List
++        onItemPress={handleItemPress}
++        onItemLongPress={handleItemLongPress}
++      />
++    </View>
++  )
++}
++
++const styles = StyleSheet.create({
++  container: {
++    flex: 1,
++  },
++  header: {
++    paddingHorizontal: 15,
++    paddingVertical: 10,
++    borderBottomWidth: 1,
++    borderBottomColor: '#f0f0f0',
++  },
++  headerTitle: {
++    fontSize: 16,
++    fontWeight: 'bold',
++  },
++})
+\ No newline at end of file
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/screens/Home/Views/Mylist/MusicList/ListMenu.tsx lx/src/screens/Home/Views/Mylist/MusicList/ListMenu.tsx
+--- lx-music-mobile-master/src/screens/Home/Views/Mylist/MusicList/ListMenu.tsx	2026-02-16 20:13:37.000000000 +0800
++++ lx/src/screens/Home/Views/Mylist/MusicList/ListMenu.tsx	2026-03-16 14:55:05.000000000 +0800
+@@ -3,6 +3,7 @@
+ import Menu, { type Menus, type MenuType, type Position } from '@/components/common/Menu'
+ import { hasDislike } from '@/core/dislikeList'
+ import { existsFile } from '@/utils/fs'
++import { addMusicToDownloadList } from '@/core/download'
+ 
+ export interface SelectInfo {
+   musicInfo: LX.Music.MusicInfo
+@@ -64,7 +65,7 @@
+     const menu = [
+       { action: 'play', label: t('play') },
+       { action: 'playLater', label: t('play_later') },
+-      // { action: 'download', label: '下载' },
++      { action: 'download', label: t('download') },
+       { action: 'add', label: t('add_to') },
+       { action: 'move', label: t('move_to') },
+       { action: 'changePosition', label: t('change_position') },
+@@ -102,6 +103,13 @@
+         props.onPlayLater(selectInfo)
+ 
+         break
++      case 'download':
++        // 添加下载功能
++        // 对于本地音乐，我们不提供下载功能
++        if (selectInfo.musicInfo.source !== 'local') {
++          void addMusicToDownloadList(selectInfo.musicInfo)
++        }
++        break
+       case 'add':
+         props.onAdd(selectInfo)
+         // isMoveRef.current = false
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/store/download/action.ts lx/src/store/download/action.ts
+--- lx-music-mobile-master/src/store/download/action.ts	1970-01-01 08:00:00.000000000 +0800
++++ lx/src/store/download/action.ts	2026-03-16 14:56:22.000000000 +0800
+@@ -0,0 +1,23 @@
++import downloadState from './state'
++import { LIST_IDS } from '@/config/constant'
++import { getDownloadList } from '@/core/download'
++
++export const setDownloadList = (list: LX.Download.ListItem[]) => {
++  downloadState.list = list
++}
++
++export const refreshDownloadList = async() => {
++  downloadState.isRefreshing = true
++  try {
++    const list = getDownloadList()
++    setDownloadList(list)
++  } finally {
++    downloadState.isRefreshing = false
++  }
++}
++
++// 初始化下载列表
++export const initDownloadList = async() => {
++  const list = getDownloadList()
++  setDownloadList(list)
++}
+\ No newline at end of file
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/store/download/hook.ts lx/src/store/download/hook.ts
+--- lx-music-mobile-master/src/store/download/hook.ts	1970-01-01 08:00:00.000000000 +0800
++++ lx/src/store/download/hook.ts	2026-03-16 14:57:24.000000000 +0800
+@@ -0,0 +1,33 @@
++import { useEffect, useState } from 'react'
++import { LIST_IDS } from '@/config/constant'
++import downloadState from './state'
++import { initDownloadList } from './action'
++
++declare const app_event: import('@/event/appEvent').AppEventTypes
++
++export const useDownloadList = () => {
++  const [list, setList] = useState<LX.Download.ListItem[]>(downloadState.list)
++  const [isRefreshing, setIsRefreshing] = useState(downloadState.isRefreshing)
++
++  useEffect(() => {
++    const handleUpdate = () => {
++      setList([...downloadState.list])
++      setIsRefreshing(downloadState.isRefreshing)
++    }
++
++    // 初始化下载列表
++    void initDownloadList()
++
++    // 监听下载列表更新事件
++    app_event.on('downloadListUpdate', handleUpdate)
++
++    return () => {
++      app_event.off('downloadListUpdate', handleUpdate)
++    }
++  }, [])
++
++  return {
++    list,
++    isRefreshing,
++  }
++}
+\ No newline at end of file
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/store/download/state.ts lx/src/store/download/state.ts
+--- lx-music-mobile-master/src/store/download/state.ts	1970-01-01 08:00:00.000000000 +0800
++++ lx/src/store/download/state.ts	2026-03-16 14:56:13.000000000 +0800
+@@ -0,0 +1,23 @@
++import { LIST_IDS } from '@/config/constant'
++import { getDownloadList } from '@/core/download'
++
++export interface State {
++  list: LX.Download.ListItem[]
++  isRefreshing: boolean
++}
++
++const state: State = {
++  list: [],
++  isRefreshing: false,
++}
++
++export const resetState = () => {
++  state.list = []
++  state.isRefreshing = false
++}
++
++export const initList = async() => {
++  state.list = getDownloadList()
++}
++
++export default state
