@@ -205,16 +205,16 @@ diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mo
  
 diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/core/download.ts lx/src/core/download.ts
 --- lx-music-mobile-master/src/core/download.ts	1970-01-01 08:00:00.000000000 +0800
-+++ lx/src/core/download.ts	2026-03-16 14:51:33.000000000 +0800
-@@ -0,0 +1,318 @@
++++ lx/src/core/download.ts	2026-03-16 16:10:59.000000000 +0800
+@@ -0,0 +1,335 @@
 +import { LIST_IDS } from '@/config/constant'
 +import listAction from '@/store/list/action'
 +import listState from '@/store/list/state'
 +import { fixNewMusicInfoQuality } from '@/utils'
 +import { saveListPrevSelectId } from '@/utils/data'
-+import { downloadFile, stopDownload, temporaryDirectoryPath } from '@/utils/fs'
++import { downloadFile, stopDownload, temporaryDirectoryPath, privateStorageDirectoryPath, mkdir, existsFile } from '@/utils/fs'
 +import { getMusicUrl } from './music'
-+import type { DownloadBeginCallbackResult, DownloadProgressCallbackResult } from 'react-native-fs'
++import { getDownloadPath } from '@/utils/downloadPath'
 +
 +// 下载任务状态枚举
 +export type DownloadTaskStatus = 'waiting' | 'downloading' | 'paused' | 'completed' | 'error'
@@ -324,14 +324,15 @@ diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mo
 +
 +      // 构建文件路径
 +      const fileName = this.generateFileName(task.musicInfo)
-+      const filePath = `${temporaryDirectoryPath}/downloads/${fileName}`
++      const downloadDir = await getDownloadPath()
++      const filePath = `${downloadDir}/${fileName}`
 +      
 +      // 确保下载目录存在
-+      await this.ensureDownloadDirectoryExists()
++      await this.ensureDownloadDirectoryExists(downloadDir)
 +      
 +      // 开始下载
 +      const downloadResult = downloadFile(musicUrl, filePath, {
-+        progress: (res: DownloadProgressCallbackResult) => {
++        progress: (res: any) => {
 +          const progress = Math.round((res.bytesWritten / res.contentLength) * 100)
 +          const speed = this.formatBytes(res.bytesWritten / (res.time / 1000))
 +          
@@ -370,10 +371,26 @@ diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mo
 +  }
 +
 +  // 确保下载目录存在
-+  private async ensureDownloadDirectoryExists() {
-+    const downloadDir = `${temporaryDirectoryPath}/downloads`
-+    // 检查目录是否存在，如果不存在则创建
-+    // 注意：这里需要使用适当的文件系统API来检查和创建目录
++  private async ensureDownloadDirectoryExists(downloadDir: string) {
++    try {
++      const dirExists = await existsFile(downloadDir)
++      if (!dirExists) {
++        await mkdir(downloadDir)
++      }
++    } catch (error) {
++      console.warn('创建下载目录失败:', error)
++      // 如果创建Music目录失败，尝试创建到根目录
++      try {
++        const rootDir = privateStorageDirectoryPath
++        const rootDirExists = await existsFile(rootDir)
++        if (!rootDirExists) {
++          await mkdir(rootDir)
++        }
++      } catch (err) {
++        console.error('无法创建下载目录:', err)
++        throw err
++      }
++    }
 +  }
 +
 +  // 生成文件名
@@ -614,6 +631,115 @@ diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mo
        case 'add':
          props.onAdd(selectInfo)
          // isMoveRef.current = false
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/screens/Setting/DownloadPathSetting.tsx lx/src/screens/Setting/DownloadPathSetting.tsx
+--- lx-music-mobile-master/src/screens/Setting/DownloadPathSetting.tsx	1970-01-01 08:00:00.000000000 +0800
++++ lx/src/screens/Setting/DownloadPathSetting.tsx	2026-03-16 16:11:15.000000000 +0800
+@@ -0,0 +1,104 @@
++import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native'
++import { useI18n } from '@/lang'
++import { useTheme } from '@/theme'
++import { getDownloadPath, setDownloadPath, resetToDefaultDownloadPath } from '@/utils/downloadPath'
++import { existsFile, selectManagedFolder } from '@/utils/fs'
++import { useEffect, useState } from 'react'
++
++export default () => {
++  const theme = useTheme()
++  const t = useI18n()
++  const [currentPath, setCurrentPath] = useState<string>('')
++
++  useEffect(() => {
++    const loadPath = async () => {
++      const path = await getDownloadPath()
++      setCurrentPath(path)
++    }
++    loadPath()
++  }, [])
++
++  const handleSelectCustomPath = async () => {
++    try {
++      // 在Android上请求用户选择一个目录
++      const selectedPath = await selectManagedFolder(true)
++      if (selectedPath) {
++        await setDownloadPath(selectedPath)
++        setCurrentPath(selectedPath)
++        Alert.alert(t('setting_toast'), t('download_path_updated'))
++      }
++    } catch (error: any) {
++      console.error('选择下载路径失败:', error)
++      Alert.alert(t('setting_toast'), t('download_path_update_failed') + error.message)
++    }
++  }
++
++  const handleResetToDefault = async () => {
++    try {
++      await resetToDefaultDownloadPath()
++      const defaultPath = await getDownloadPath()
++      setCurrentPath(defaultPath)
++      Alert.alert(t('setting_toast'), t('download_path_reset_success'))
++    } catch (error: any) {
++      console.error('重置下载路径失败:', error)
++      Alert.alert(t('setting_toast'), t('download_path_reset_failed') + error.message)
++    }
++  }
++
++  return (
++    <View style={[styles.container, { backgroundColor: theme['main-background-color'] }]}>
++      <View style={styles.settingItem}>
++        <Text style={[styles.label, { color: theme['main-font-color'] }]}>
++          {t('download_current_path')}
++        </Text>
++        <Text style={[styles.value, { color: theme['main-subtitle_font-color'] }]} numberOfLines={2}>
++          {currentPath}
++        </Text>
++      </View>
++
++      <TouchableOpacity style={styles.button} onPress={handleSelectCustomPath}>
++        <Text style={styles.buttonText}>{t('download_select_custom_path')}</Text>
++      </TouchableOpacity>
++
++      <TouchableOpacity style={[styles.button, styles.resetButton]} onPress={handleResetToDefault}>
++        <Text style={[styles.buttonText, styles.resetButtonText]}>{t('download_reset_to_default')}</Text>
++      </TouchableOpacity>
++    </View>
++  )
++}
++
++const styles = StyleSheet.create({
++  container: {
++    flex: 1,
++    padding: 15,
++  },
++  settingItem: {
++    marginBottom: 20,
++  },
++  label: {
++    fontSize: 16,
++    marginBottom: 5,
++  },
++  value: {
++    fontSize: 14,
++    lineHeight: 20,
++  },
++  button: {
++    backgroundColor: '#007AFF',
++    padding: 15,
++    borderRadius: 8,
++    alignItems: 'center',
++    marginBottom: 10,
++  },
++  buttonText: {
++    color: 'white',
++    fontSize: 16,
++    fontWeight: '500',
++  },
++  resetButton: {
++    backgroundColor: '#FF3B30',
++  },
++  resetButtonText: {
++    color: 'white',
++  },
++})
+\ No newline at end of file
 diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/store/download/action.ts lx/src/store/download/action.ts
 --- lx-music-mobile-master/src/store/download/action.ts	1970-01-01 08:00:00.000000000 +0800
 +++ lx/src/store/download/action.ts	2026-03-16 14:56:22.000000000 +0800
@@ -707,3 +833,72 @@ diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mo
 +}
 +
 +export default state
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/utils/downloadPath.ts lx/src/utils/downloadPath.ts
+--- lx-music-mobile-master/src/utils/downloadPath.ts	1970-01-01 08:00:00.000000000 +0800
++++ lx/src/utils/downloadPath.ts	2026-03-16 16:06:44.000000000 +0800
+@@ -0,0 +1,64 @@
++import { privateStorageDirectoryPath, externalStorageDirectoryPath, existsFile, mkdir } from '@/utils/fs'
++import { getData, saveData } from '@/plugins/storage'
++
++// 默认下载路径键
++const DOWNLOAD_PATH_KEY = 'download_path'
++
++/**
++ * 获取当前下载路径
++ * 如果用户没有设置自定义路径，则返回默认的沙盒路径
++ */
++export const getDownloadPath = async (): Promise<string> => {
++  try {
++    // 尝试从存储中获取用户设置的下载路径
++    const customPath = await getData<string>(DOWNLOAD_PATH_KEY)
++    
++    if (customPath && typeof customPath === 'string') {
++      // 检查自定义路径是否存在，如果不存在则尝试创建
++      const pathExists = await existsFile(customPath)
++      if (pathExists) {
++        return customPath
++      } else {
++        // 如果自定义路径不存在，尝试创建
++        try {
++          await mkdir(customPath)
++          return customPath
++        } catch (error) {
++          console.warn('自定义下载路径不可用，使用默认路径:', error)
++        }
++      }
++    }
++  } catch (error) {
++    console.warn('获取下载路径失败，使用默认路径:', error)
++  }
++
++  // 返回默认的沙盒路径
++  const defaultPath = `${privateStorageDirectoryPath}/Music`
++  return defaultPath
++}
++
++/**
++ * 设置下载路径
++ */
++export const setDownloadPath = async (path: string): Promise<void> => {
++  // 验证路径是否可写
++  try {
++    const pathExists = await existsFile(path)
++    if (!pathExists) {
++      await mkdir(path)
++    }
++    
++    // 保存到存储
++    await saveData(DOWNLOAD_PATH_KEY, path)
++  } catch (error) {
++    console.error('设置下载路径失败:', error)
++    throw error
++  }
++}
++
++/**
++ * 重置为默认下载路径
++ */
++export const resetToDefaultDownloadPath = async (): Promise<void> => {
++  await saveData(DOWNLOAD_PATH_KEY, null)
++}
+\ No newline at end of file
