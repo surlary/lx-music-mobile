@@ -31,63 +31,46 @@ diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mo
      })
    } else resetPlayerMusicInfo()
  }
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/screens/Home/Horizontal/Aside.tsx lx/src/screens/Home/Horizontal/Aside.tsx
+--- lx-music-mobile-master/src/screens/Home/Horizontal/Aside.tsx	2026-02-16 20:13:37.000000000 +0800
++++ lx/src/screens/Home/Horizontal/Aside.tsx	2026-03-17 10:44:00.000000000 +0800
+@@ -111,13 +111,7 @@
+   const handlePress = (id: IdType) => {
+     switch (id) {
+       case 'nav_exit':
+-        void confirmDialog({
+-          message: global.i18n.t('exit_app_tip'),
+-          confirmButtonText: global.i18n.t('list_remove_tip_button'),
+-        }).then(isExit => {
+-          if (!isExit) return
+-          exitApp('Exit Btn')
+-        })
++        exitApp('Exit Btn')
+         return
+       case 'back_home':
+         backHome()
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/screens/Home/Vertical/DrawerNav.tsx lx/src/screens/Home/Vertical/DrawerNav.tsx
+--- lx-music-mobile-master/src/screens/Home/Vertical/DrawerNav.tsx	2026-02-16 20:13:37.000000000 +0800
++++ lx/src/screens/Home/Vertical/DrawerNav.tsx	2026-03-17 10:43:48.000000000 +0800
+@@ -105,13 +105,7 @@
+   const handlePress = (id: IdType) => {
+     switch (id) {
+       case 'nav_exit':
+-        void confirmDialog({
+-          message: global.i18n.t('exit_app_tip'),
+-          confirmButtonText: global.i18n.t('list_remove_tip_button'),
+-        }).then(isExit => {
+-          if (!isExit) return
+-          exitApp('Exit Btn')
+-        })
++        exitApp('Exit Btn')
+         return
+       case 'back_home':
+         backHome()
 diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/screens/PlayDetail/Horizontal/Player/PlayInfo.tsx lx/src/screens/PlayDetail/Horizontal/Player/PlayInfo.tsx
 --- lx-music-mobile-master/src/screens/PlayDetail/Horizontal/Player/PlayInfo.tsx	2026-02-16 20:13:37.000000000 +0800
-+++ lx/src/screens/PlayDetail/Horizontal/Player/PlayInfo.tsx	2026-03-17 09:42:59.000000000 +0800
-@@ -1,5 +1,6 @@
- import { memo } from 'react'
--import { StyleSheet, View } from 'react-native'
-+import { StyleSheet, View, TouchableOpacity } from 'react-native'
-+import Clipboard from '@react-native-clipboard/clipboard'
- 
- import Progress from '@/components/player/Progress'
- import Status from './Status'
-@@ -8,6 +9,9 @@
- import { createStyle } from '@/utils/tools'
- import Text from '@/components/common/Text'
- import { useBufferProgress } from '@/plugins/player'
-+import { usePlayerMusicInfo } from '@/store/player/hook'
-+import { Icon } from '@/components/common/Icon'
-+import { toast } from '@/utils/tools'
- 
- // const FONT_SIZE = 13
- 
-@@ -22,6 +26,26 @@
-   return <Text color={theme['c-500']}>{timeStr}</Text>
- })
- 
-+const CopyUrlButton = () => {
-+  const theme = useTheme()
-+  const { url } = usePlayerMusicInfo()
-+  
-+  const handleCopyUrl = () => {
-+    if (url) {
-+      Clipboard.setString(url)
-+      toast('歌曲链接已复制到剪贴板')
-+    } else {
-+      toast('暂无歌曲链接')
-+    }
-+  }
-+
-+  return (
-+    <TouchableOpacity onPress={handleCopyUrl} style={styles.copyButton}>
-+      <Icon name="link" color={theme['c-primary-font']} size={16} />
-+    </TouchableOpacity>
-+  )
-+}
-+
- export default () => {
-   const theme = useTheme()
-   const { maxPlayTimeStr, nowPlayTimeStr, progress, maxPlayTime } = useProgress()
-@@ -38,6 +62,7 @@
-         <Text color={theme['c-500']}> / </Text>
-         <PlayTimeMax timeStr={maxPlayTimeStr} />
-       </View>
-+      <CopyUrlButton />
-       <View style={[StyleSheet.absoluteFill, styles.progress]}><Progress progress={progress} duration={maxPlayTime} buffered={buffered} /></View>
-     </View>
-   )
-@@ -73,6 +98,10 @@
++++ lx/src/screens/PlayDetail/Horizontal/Player/PlayInfo.tsx	2026-03-17 10:38:44.000000000 +0800
+@@ -73,6 +73,10 @@
      flexShrink: 1,
      paddingRight: 5,
    },
@@ -98,32 +81,20 @@ diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mo
  })
  // const styles = createStyle({
  //   container: {
-diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/screens/PlayDetail/Vertical/Player/components/PlayInfo.tsx lx/src/screens/PlayDetail/Vertical/Player/components/PlayInfo.tsx
---- lx-music-mobile-master/src/screens/PlayDetail/Vertical/Player/components/PlayInfo.tsx	2026-02-16 20:13:37.000000000 +0800
-+++ lx/src/screens/PlayDetail/Vertical/Player/components/PlayInfo.tsx	2026-03-17 09:46:30.000000000 +0800
-@@ -1,5 +1,6 @@
- import { memo } from 'react'
--import { View } from 'react-native'
-+import { View, TouchableOpacity } from 'react-native'
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/screens/PlayDetail/Vertical/Player/components/MoreBtn/CopyLinkBtn.tsx lx/src/screens/PlayDetail/Vertical/Player/components/MoreBtn/CopyLinkBtn.tsx
+--- lx-music-mobile-master/src/screens/PlayDetail/Vertical/Player/components/MoreBtn/CopyLinkBtn.tsx	1970-01-01 08:00:00.000000000 +0800
++++ lx/src/screens/PlayDetail/Vertical/Player/components/MoreBtn/CopyLinkBtn.tsx	2026-03-17 10:36:36.000000000 +0800
+@@ -0,0 +1,35 @@
++import { TouchableOpacity } from 'react-native'
 +import Clipboard from '@react-native-clipboard/clipboard'
- 
- import Progress from '@/components/player/ProgressBar'
- import Status from './Status'
-@@ -8,6 +9,9 @@
- import { createStyle } from '@/utils/tools'
- import Text from '@/components/common/Text'
- import { useBufferProgress } from '@/plugins/player'
-+import { usePlayerMusicInfo } from '@/store/player/hook'
 +import { Icon } from '@/components/common/Icon'
++import { createStyle } from '@/utils/tools'
++import { useTheme } from '@/store/theme/hook'
++import { usePlayerMusicInfo } from '@/store/player/hook'
 +import { toast } from '@/utils/tools'
- 
- // const FONT_SIZE = 13
- 
-@@ -22,7 +26,28 @@
-   return <Text color={theme['c-500']}>{timeStr}</Text>
- })
- 
-+const CopyUrlButton = () => {
++import { BTN_WIDTH, BTN_ICON_SIZE } from './Btn'
++
++export default () => {
 +  const theme = useTheme()
 +  const { url } = usePlayerMusicInfo()
 +  
@@ -137,26 +108,42 @@ diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mo
 +  }
 +
 +  return (
-+    <TouchableOpacity onPress={handleCopyUrl} style={styles.copyButton}>
-+      <Icon name="link" color={theme['c-primary-font']} size={16} />
++    <TouchableOpacity style={{ ...styles.cotrolBtn, width: BTN_WIDTH, height: BTN_WIDTH }} activeOpacity={0.5} onPress={handleCopyUrl}>
++      <Icon name="link" color={theme['c-font-label']} size={BTN_ICON_SIZE} />
 +    </TouchableOpacity>
 +  )
 +}
 +
- export default () => {
-+  const theme = useTheme()
-   const { maxPlayTimeStr, nowPlayTimeStr, progress, maxPlayTime } = useProgress()
-   const buffered = useBufferProgress()
++const styles = createStyle({
++  cotrolBtn: {
++    justifyContent: 'center',
++    alignItems: 'center',
++  },
++})
+\ No newline at end of file
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/screens/PlayDetail/Vertical/Player/components/MoreBtn/index.tsx lx/src/screens/PlayDetail/Vertical/Player/components/MoreBtn/index.tsx
+--- lx-music-mobile-master/src/screens/PlayDetail/Vertical/Player/components/MoreBtn/index.tsx	2026-02-16 20:13:37.000000000 +0800
++++ lx/src/screens/PlayDetail/Vertical/Player/components/MoreBtn/index.tsx	2026-03-17 10:37:35.000000000 +0800
+@@ -4,6 +4,7 @@
+ import MusicAddBtn from './MusicAddBtn'
+ import DesktopLyricBtn from './DesktopLyricBtn'
+ import CommentBtn from './CommentBtn'
++import CopyLinkBtn from './CopyLinkBtn'
  
-@@ -37,6 +62,7 @@
-           <Status />
-         </View>
-         <PlayTimeMax timeStr={maxPlayTimeStr} />
-+        <CopyUrlButton />
-       </View>
-     </>
+ export default () => {
+   return (
+@@ -12,6 +13,7 @@
+       <MusicAddBtn />
+       <PlayModeBtn />
+       <CommentBtn />
++      <CopyLinkBtn />
+     </View>
    )
-@@ -62,4 +88,8 @@
+ }
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/screens/PlayDetail/Vertical/Player/components/PlayInfo.tsx lx/src/screens/PlayDetail/Vertical/Player/components/PlayInfo.tsx
+--- lx-music-mobile-master/src/screens/PlayDetail/Vertical/Player/components/PlayInfo.tsx	2026-02-16 20:13:37.000000000 +0800
++++ lx/src/screens/PlayDetail/Vertical/Player/components/PlayInfo.tsx	2026-03-17 10:39:46.000000000 +0800
+@@ -62,4 +62,8 @@
      paddingLeft: 10,
      paddingRight: 10,
    },
