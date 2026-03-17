@@ -1,1010 +1,191 @@
-diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/components/DownloadList/List.tsx lx/src/components/DownloadList/List.tsx
---- lx-music-mobile-master/src/components/DownloadList/List.tsx	1970-01-01 08:00:00.000000000 +0800
-+++ lx/src/components/DownloadList/List.tsx	2026-03-16 14:58:20.000000000 +0800
-@@ -0,0 +1,53 @@
-+import { View, Text, FlatList, StyleSheet } from 'react-native'
-+import { useI18n } from '@/lang'
-+import { useDownloadList } from '@/store/download/hook'
-+import { useTheme } from '@/theme'
-+import ListItem from './ListItem'
-+
-+interface Props {
-+  onItemPress: (item: LX.Download.ListItem) => void
-+  onItemLongPress: (item: LX.Download.ListItem) => void
-+}
-+
-+export default ({ onItemPress, onItemLongPress }: Props) => {
-+  const theme = useTheme()
-+  const t = useI18n()
-+  const { list } = useDownloadList()
-+
-+  const renderItem = ({ item }: { item: LX.Download.ListItem }) => (
-+    <ListItem
-+      item={item}
-+      onPress={onItemPress}
-+      onLongPress={onItemLongPress}
-+    />
-+  )
-+
-+  if (list.length === 0) {
-+    return (
-+      <View style={[styles.emptyContainer, { backgroundColor: theme['main-background-color'] }]}>
-+        <Text style={{ color: theme['main-subtitle_font-color'] }}>
-+          {t('download_list_empty')}
-+        </Text>
-+      </View>
-+    )
-+  }
-+
-+  return (
-+    <FlatList
-+      data={list}
-+      renderItem={renderItem}
-+      keyExtractor={item => item.id}
-+      contentContainerStyle={{ backgroundColor: theme['main-background-color'] }}
-+      showsVerticalScrollIndicator={false}
-+    />
-+  )
-+}
-+
-+const styles = StyleSheet.create({
-+  emptyContainer: {
-+    flex: 1,
-+    justifyContent: 'center',
-+    alignItems: 'center',
-+    paddingTop: 100,
-+  },
-+})
-\ No newline at end of file
-diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/components/DownloadList/ListItem.tsx lx/src/components/DownloadList/ListItem.tsx
---- lx-music-mobile-master/src/components/DownloadList/ListItem.tsx	1970-01-01 08:00:00.000000000 +0800
-+++ lx/src/components/DownloadList/ListItem.tsx	2026-03-16 14:57:48.000000000 +0800
-@@ -0,0 +1,99 @@
-+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
-+import { useI18n } from '@/lang'
-+import { useTheme } from '@/theme'
-+
-+interface Props {
-+  item: LX.Download.ListItem
-+  onLongPress: (item: LX.Download.ListItem) => void
-+  onPress: (item: LX.Download.ListItem) => void
-+}
-+
-+export default ({ item, onLongPress, onPress }: Props) => {
-+  const theme = useTheme()
-+  const t = useI18n()
-+
-+  const getStatusText = (status: LX.Download.DownloadTaskStatus) => {
-+    switch (status) {
-+      case 'waiting':
-+        return t('download_waiting')
-+      case 'run':
-+        return t('download_running')
-+      case 'pause':
-+        return t('download_paused')
-+      case 'error':
-+        return t('download_error')
-+      case 'completed':
-+        return t('download_completed')
-+      default:
-+        return status
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/core/music/utils.ts lx/src/core/music/utils.ts
+--- lx-music-mobile-master/src/core/music/utils.ts	2026-02-16 20:13:37.000000000 +0800
++++ lx/src/core/music/utils.ts	2026-03-17 09:41:54.000000000 +0800
+@@ -306,6 +306,10 @@
+     reqPromise = Promise.reject(err)
+   }
+   return reqPromise.then(({ url, type }: { url: string, type: LX.Quality }) => {
++    // 更新播放信息中的URL
++    if (global.lx.player.playMusicInfo.musicInfo?.id === musicInfo.id) {
++      global.lx.player.musicInfo.url = url
 +    }
-+  }
-+
-+  const getDisplayInfo = () => {
-+    if (item.status === 'completed') {
-+      return t('download_completed')
-+    } else if (item.status === 'error') {
-+      return item.statusText
+     return { musicInfo, url, quality: type, isFromCache: false }
+   }).catch(async(err: any) => {
+     console.log(err)
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/core/player/playInfo.ts lx/src/core/player/playInfo.ts
+--- lx-music-mobile-master/src/core/player/playInfo.ts	2026-02-16 20:13:37.000000000 +0800
++++ lx/src/core/player/playInfo.ts	2026-03-17 09:41:09.000000000 +0800
+@@ -98,6 +98,7 @@
+       rlrc: null,
+       lxlrc: null,
+       rawlrc: null,
++      url: null,
+     } : {
+       id: musicInfo.id,
+       pic: musicInfo.meta.picUrl,
+@@ -109,6 +110,7 @@
+       rlrc: null,
+       lxlrc: null,
+       rawlrc: null,
++      url: null,
+     })
+   } else resetPlayerMusicInfo()
+ }
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/screens/PlayDetail/Horizontal/Player/PlayInfo.tsx lx/src/screens/PlayDetail/Horizontal/Player/PlayInfo.tsx
+--- lx-music-mobile-master/src/screens/PlayDetail/Horizontal/Player/PlayInfo.tsx	2026-02-16 20:13:37.000000000 +0800
++++ lx/src/screens/PlayDetail/Horizontal/Player/PlayInfo.tsx	2026-03-17 09:42:59.000000000 +0800
+@@ -1,5 +1,6 @@
+ import { memo } from 'react'
+-import { StyleSheet, View } from 'react-native'
++import { StyleSheet, View, TouchableOpacity } from 'react-native'
++import Clipboard from '@react-native-clipboard/clipboard'
+ 
+ import Progress from '@/components/player/Progress'
+ import Status from './Status'
+@@ -8,6 +9,9 @@
+ import { createStyle } from '@/utils/tools'
+ import Text from '@/components/common/Text'
+ import { useBufferProgress } from '@/plugins/player'
++import { usePlayerMusicInfo } from '@/store/player/hook'
++import { Icon } from '@/components/common/Icon'
++import { toast } from '@/utils/tools'
+ 
+ // const FONT_SIZE = 13
+ 
+@@ -22,6 +26,26 @@
+   return <Text color={theme['c-500']}>{timeStr}</Text>
+ })
+ 
++const CopyUrlButton = () => {
++  const theme = useTheme()
++  const { url } = usePlayerMusicInfo()
++  
++  const handleCopyUrl = () => {
++    if (url) {
++      Clipboard.setString(url)
++      toast('歌曲链接已复制到剪贴板')
 +    } else {
-+      return `${item.metadata.musicInfo.singer} • ${item.progress}% • ${item.speed}`
++      toast('暂无歌曲链接')
 +    }
 +  }
 +
 +  return (
-+    <TouchableOpacity
-+      style={[styles.container, { backgroundColor: theme['list-item_background-color'] }]}
-+      onPress={() => onPress(item)}
-+      onLongPress={() => onLongPress(item)}
-+    >
-+      <View style={styles.leftContainer}>
-+        <Text
-+          style={[styles.title, { color: theme['list-item_font-color'] }]}
-+          numberOfLines={1}
-+        >
-+          {item.metadata.musicInfo.name}
-+        </Text>
-+        <Text
-+          style={[styles.info, { color: theme['list-item-subtitle_font-color'] }]}
-+          numberOfLines={1}
-+        >
-+          {getDisplayInfo()}
-+        </Text>
-+      </View>
-+      <View style={styles.rightContainer}>
-+        <Text style={[styles.status, { color: theme['list-item-subtitle_font-color'] }]}>
-+          {getStatusText(item.status)}
-+        </Text>
-+      </View>
++    <TouchableOpacity onPress={handleCopyUrl} style={styles.copyButton}>
++      <Icon name="link" color={theme['c-primary-font']} size={16} />
 +    </TouchableOpacity>
 +  )
 +}
 +
-+const styles = StyleSheet.create({
-+  container: {
-+    flexDirection: 'row',
-+    alignItems: 'center',
-+    paddingHorizontal: 15,
-+    paddingVertical: 10,
-+    minHeight: 54,
+ export default () => {
+   const theme = useTheme()
+   const { maxPlayTimeStr, nowPlayTimeStr, progress, maxPlayTime } = useProgress()
+@@ -38,6 +62,7 @@
+         <Text color={theme['c-500']}> / </Text>
+         <PlayTimeMax timeStr={maxPlayTimeStr} />
+       </View>
++      <CopyUrlButton />
+       <View style={[StyleSheet.absoluteFill, styles.progress]}><Progress progress={progress} duration={maxPlayTime} buffered={buffered} /></View>
+     </View>
+   )
+@@ -73,6 +98,10 @@
+     flexShrink: 1,
+     paddingRight: 5,
+   },
++  copyButton: {
++    padding: 5,
++    marginLeft: 5,
 +  },
-+  leftContainer: {
-+    flex: 1,
-+    marginRight: 10,
-+    justifyContent: 'center',
-+  },
-+  rightContainer: {
-+    justifyContent: 'center',
-+    alignItems: 'flex-end',
-+  },
-+  title: {
-+    fontSize: 15,
-+    fontWeight: 'normal',
-+  },
-+  info: {
-+    fontSize: 12,
-+    marginTop: 3,
-+  },
-+  status: {
-+    fontSize: 12,
-+  },
-+})
-\ No newline at end of file
-diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/components/OnlineList/ListMenu.tsx lx/src/components/OnlineList/ListMenu.tsx
---- lx-music-mobile-master/src/components/OnlineList/ListMenu.tsx	2026-02-16 20:13:37.000000000 +0800
-+++ lx/src/components/OnlineList/ListMenu.tsx	2026-03-16 18:29:54.000000000 +0800
-@@ -2,6 +2,7 @@
- import { useI18n } from '@/lang'
- import Menu, { type MenuType, type Position } from '@/components/common/Menu'
- import { hasDislike } from '@/core/dislikeList'
-+import { addMusicToDownloadList } from '@/core/download'
+ })
+ // const styles = createStyle({
+ //   container: {
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/screens/PlayDetail/Vertical/Player/components/PlayInfo.tsx lx/src/screens/PlayDetail/Vertical/Player/components/PlayInfo.tsx
+--- lx-music-mobile-master/src/screens/PlayDetail/Vertical/Player/components/PlayInfo.tsx	2026-02-16 20:13:37.000000000 +0800
++++ lx/src/screens/PlayDetail/Vertical/Player/components/PlayInfo.tsx	2026-03-17 09:46:30.000000000 +0800
+@@ -1,5 +1,6 @@
+ import { memo } from 'react'
+-import { View } from 'react-native'
++import { View, TouchableOpacity } from 'react-native'
++import Clipboard from '@react-native-clipboard/clipboard'
  
- export interface SelectInfo {
-   musicInfo: LX.Music.MusicInfoOnline
-@@ -52,7 +53,7 @@
-     return [
-       { action: 'play', label: t('play') },
-       { action: 'playLater', label: t('play_later') },
--      // { action: 'download', label: '下载' },
-+      { action: 'download', label: 'download' },
-       { action: 'add', label: t('add_to') },
-       { action: 'copyName', label: t('copy_name') },
-       { action: 'musicSourceDetail', label: t('music_source_detail') },
-@@ -69,6 +70,10 @@
-       case 'playLater':
-         props.onPlayLater(selectInfo)
-         break
-+      case 'download':
-+        // 添加下载功能
-+        void addMusicToDownloadList(selectInfo.musicInfo)
-+        break
-       case 'add':
-         props.onAdd(selectInfo)
-         break
-diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/config/constant.ts lx/src/config/constant.ts
---- lx-music-mobile-master/src/config/constant.ts	2026-02-16 20:13:37.000000000 +0800
-+++ lx/src/config/constant.ts	2026-03-16 14:59:40.000000000 +0800
-@@ -103,7 +103,7 @@
-   { id: 'nav_songlist', icon: 'album' },
-   { id: 'nav_top', icon: 'leaderboard' },
-   { id: 'nav_love', icon: 'love' },
--  // { id: 'download', icon: 'download-2' },
-+  { id: 'nav_download', icon: 'download-2' },
-   { id: 'nav_setting', icon: 'setting' },
- ] as const
- 
-diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/core/download.ts lx/src/core/download.ts
---- lx-music-mobile-master/src/core/download.ts	1970-01-01 08:00:00.000000000 +0800
-+++ lx/src/core/download.ts	2026-03-16 16:10:59.000000000 +0800
-@@ -0,0 +1,335 @@
-+import { LIST_IDS } from '@/config/constant'
-+import listAction from '@/store/list/action'
-+import listState from '@/store/list/state'
-+import { fixNewMusicInfoQuality } from '@/utils'
-+import { saveListPrevSelectId } from '@/utils/data'
-+import { downloadFile, stopDownload, temporaryDirectoryPath, privateStorageDirectoryPath, mkdir, existsFile } from '@/utils/fs'
-+import { getMusicUrl } from './music'
-+import { getDownloadPath } from '@/utils/downloadPath'
-+
-+// 下载任务状态枚举
-+export type DownloadTaskStatus = 'waiting' | 'downloading' | 'paused' | 'completed' | 'error'
-+
-+// 下载任务接口
-+interface DownloadTask {
-+  id: string
-+  musicInfo: LX.Music.MusicInfoOnline
-+  status: DownloadTaskStatus
-+  progress: number
-+  speed: string
-+  downloaded: number
-+  total: number
-+  filePath?: string
-+  error?: string
-+  jobId?: number // 下载任务ID
-+}
-+
-+// 全局下载任务管理器
-+class DownloadManager {
-+  private tasks: Map<string, DownloadTask> = new Map()
-+  private eventEmitter: {
-+    on: (event: string, callback: any) => void
-+    off: (event: string, callback: any) => void
-+    emit: (event: string, ...args: any[]) => void
-+  } = {
-+    on: (event: string, callback: any) => {},
-+    off: (event: string, callback: any) => {},
-+    emit: (event: string, ...args: any[]) => {}
-+  }
-+  private activeDownloads = 0
-+  private maxConcurrentDownloads = 3 // 最大并发下载数
-+
-+  // 添加下载任务
-+  async addDownloadTask(musicInfo: LX.Music.MusicInfoOnline) {
-+    const taskId = musicInfo.id
-+    
-+    // 检查任务是否已存在
-+    if (this.tasks.has(taskId)) {
-+      const task = this.tasks.get(taskId)!
-+      if (task.status === 'completed') {
-+        return // 已完成的任务不需要重新下载
-+      }
-+      // 如果是其他状态，更新任务信息
-+      task.musicInfo = musicInfo
-+      task.status = 'waiting'
-+      task.progress = 0
-+      task.downloaded = 0
-+      task.total = 0
-+      this.updateTask(task)
-+      return
-+    }
-+
-+    const task: DownloadTask = {
-+      id: taskId,
-+      musicInfo,
-+      status: 'waiting',
-+      progress: 0,
-+      speed: '0 KB/s',
-+      downloaded: 0,
-+      total: 0,
-+    }
-+
-+    this.tasks.set(taskId, task)
-+    this.updateTask(task)
-+    
-+    // 如果有空闲的下载槽位，立即开始下载
-+    if (this.activeDownloads < this.maxConcurrentDownloads) {
-+      this.processNextTask()
-+    }
-+  }
-+
-+  // 处理下一个等待中的任务
-+  private async processNextTask() {
-+    if (this.activeDownloads >= this.maxConcurrentDownloads) {
-+      return // 没有空闲的下载槽位
-+    }
-+
-+    // 查找下一个等待中的任务
-+    for (const task of this.tasks.values()) {
-+      if (task.status === 'waiting') {
-+        this.startDownload(task)
-+        break
-+      }
-+    }
-+  }
-+
-+  // 开始下载任务
-+  private async startDownload(task: DownloadTask) {
-+    if (task.status !== 'waiting') return
-+
-+    this.activeDownloads++
-+    task.status = 'downloading'
-+    this.updateTask(task)
-+
-+    try {
-+      // 获取音乐URL
-+      const musicUrl = await getMusicUrl({
-+        musicInfo: task.musicInfo,
-+        quality: '128k' as LX.Quality, // 默认质量
-+        isRefresh: false,
-+      })
-+
-+      if (!musicUrl) {
-+        throw new Error('无法获取音乐下载链接')
-+      }
-+
-+      // 构建文件路径
-+      const fileName = this.generateFileName(task.musicInfo)
-+      const downloadDir = await getDownloadPath()
-+      const filePath = `${downloadDir}/${fileName}`
-+      
-+      // 确保下载目录存在
-+      await this.ensureDownloadDirectoryExists(downloadDir)
-+      
-+      // 开始下载
-+      const downloadResult = downloadFile(musicUrl, filePath, {
-+        progress: (res: any) => {
-+          const progress = Math.round((res.bytesWritten / res.contentLength) * 100)
-+          const speed = this.formatBytes(res.bytesWritten / (res.time / 1000))
-+          
-+          task.progress = progress
-+          task.downloaded = res.bytesWritten
-+          task.total = res.contentLength
-+          task.speed = `${speed}/s`
-+          
-+          this.updateTask(task)
-+        },
-+        progressInterval: 500,
-+      })
-+
-+      task.jobId = downloadResult.jobId
-+      const result = await downloadResult.promise
-+      
-+      if (result.statusCode === 200) {
-+        task.status = 'completed'
-+        task.filePath = filePath
-+        task.progress = 100
-+        this.updateTask(task)
-+      } else {
-+        throw new Error(`下载失败，状态码: ${result.statusCode}`)
-+      }
-+    } catch (error: any) {
-+      task.status = 'error'
-+      task.error = error.message || '未知错误'
-+      this.updateTask(task)
-+    } finally {
-+      this.activeDownloads--
-+      this.eventEmitter.emit('taskCompleted', task)
-+      
-+      // 处理下一个任务
-+      this.processNextTask()
-+    }
-+  }
-+
-+  // 确保下载目录存在
-+  private async ensureDownloadDirectoryExists(downloadDir: string) {
-+    try {
-+      const dirExists = await existsFile(downloadDir)
-+      if (!dirExists) {
-+        await mkdir(downloadDir)
-+      }
-+    } catch (error) {
-+      console.warn('创建下载目录失败:', error)
-+      // 如果创建Music目录失败，尝试创建到根目录
-+      try {
-+        const rootDir = privateStorageDirectoryPath
-+        const rootDirExists = await existsFile(rootDir)
-+        if (!rootDirExists) {
-+          await mkdir(rootDir)
-+        }
-+      } catch (err) {
-+        console.error('无法创建下载目录:', err)
-+        throw err
-+      }
-+    }
-+  }
-+
-+  // 生成文件名
-+  private generateFileName(musicInfo: LX.Music.MusicInfoOnline): string {
-+    // 使用歌名-歌手作为文件名，并清理特殊字符
-+    const cleanName = musicInfo.name.replace(/[<>:"/\\|?*]/g, '_')
-+    const cleanSinger = musicInfo.singer.replace(/[<>:"/\\|?*]/g, '_')
-+    return `${cleanName}-${cleanSinger}.mp3`.substring(0, 200) // 限制文件名长度
-+  }
-+
-+  // 格式化字节大小
-+  private formatBytes(bytes: number): string {
-+    if (bytes === 0) return '0 Bytes'
-+    const k = 1024
-+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-+    const i = Math.floor(Math.log(bytes) / Math.log(k))
-+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-+  }
-+
-+  // 暂停下载任务
-+  pauseTask(taskId: string) {
-+    const task = this.tasks.get(taskId)
-+    if (task && task.status === 'downloading' && task.jobId !== undefined) {
-+      stopDownload(task.jobId)
-+      task.status = 'paused'
-+      this.updateTask(task)
-+    }
-+  }
-+
-+  // 恢复下载任务
-+  resumeTask(taskId: string) {
-+    const task = this.tasks.get(taskId)
-+    if (task && task.status === 'paused') {
-+      task.status = 'waiting' // 设置为等待状态，等待处理
-+      this.updateTask(task)
-+      
-+      // 如果有空闲的下载槽位，立即开始下载
-+      if (this.activeDownloads < this.maxConcurrentDownloads) {
-+        this.startDownload(task)
-+      }
-+    }
-+  }
-+
-+  // 删除下载任务
-+  removeTask(taskId: string) {
-+    const task = this.tasks.get(taskId)
-+    if (task) {
-+      if (task.status === 'downloading' && task.jobId !== undefined) {
-+        stopDownload(task.jobId)
-+      }
-+      this.tasks.delete(taskId)
-+      this.eventEmitter.emit('taskRemoved', taskId)
-+    }
-+  }
-+
-+  // 获取所有任务
-+  getAllTasks(): DownloadTask[] {
-+    return Array.from(this.tasks.values())
-+  }
-+
-+  // 获取特定任务
-+  getTask(taskId: string): DownloadTask | undefined {
-+    return this.tasks.get(taskId)
-+  }
-+
-+  // 更新任务状态
-+  private updateTask(task: DownloadTask) {
-+    this.tasks.set(task.id, { ...task })
-+    this.eventEmitter.emit('taskUpdated', task)
-+    
-+    // 更新下载列表UI
-+    app_event.downloadListUpdate()
-+  }
-+
-+  // 监听任务更新
-+  onTaskUpdated(callback: (task: DownloadTask) => void) {
-+    this.eventEmitter.on('taskUpdated', callback)
-+  }
-+
-+  offTaskUpdated(callback: (task: DownloadTask) => void) {
-+    this.eventEmitter.off('taskUpdated', callback)
-+  }
-+
-+  // 监听任务完成
-+  onTaskCompleted(callback: (task: DownloadTask) => void) {
-+    this.eventEmitter.on('taskCompleted', callback)
-+  }
-+
-+  offTaskCompleted(callback: (task: DownloadTask) => void) {
-+    this.eventEmitter.off('taskCompleted', callback)
-+  }
-+}
-+
-+// 创建下载管理器实例
-+export const downloadManager = new DownloadManager()
-+
-+// 添加歌曲到下载列表的便捷函数
-+export const addMusicToDownloadList = async (musicInfo: LX.Music.MusicInfoOnline) => {
-+  await downloadManager.addDownloadTask(musicInfo)
-+}
-+
-+// 获取下载列表
-+export const getDownloadList = (): LX.Download.ListItem[] => {
-+  return downloadManager.getAllTasks().map(task => {
-+    return {
-+      id: task.id,
-+      isComplate: task.status === 'completed',
-+      status: task.status as LX.Download.DownloadTaskStatus,
-+      statusText: task.error || getStatusText(task.status),
-+      downloaded: task.downloaded,
-+      total: task.total,
-+      progress: task.progress,
-+      speed: task.speed,
-+      metadata: {
-+        musicInfo: task.musicInfo,
-+        url: '', // 实际下载完成后可能会更新
-+        quality: '128k' as LX.Quality,
-+        ext: 'mp3' as LX.Download.FileExt,
-+        fileName: downloadManager['generateFileName'](task.musicInfo),
-+        filePath: task.filePath || '',
-+      },
-+    }
-+  })
-+}
-+
-+// 获取状态文本
-+const getStatusText = (status: DownloadTaskStatus): string => {
-+  const statusMap: Record<DownloadTaskStatus, string> = {
-+    waiting: '等待中',
-+    downloading: '下载中',
-+    paused: '已暂停',
-+    completed: '已完成',
-+    error: '下载失败',
-+  }
-+  return statusMap[status] || status
-+}
-+
-+// 暂停下载任务
-+export const pauseDownloadTask = (taskId: string) => {
-+  downloadManager.pauseTask(taskId)
-+}
-+
-+// 恢复下载任务
-+export const resumeDownloadTask = (taskId: string) => {
-+  downloadManager.resumeTask(taskId)
-+}
-+
-+// 删除下载任务
-+export const removeDownloadTask = (taskId: string) => {
-+  downloadManager.removeTask(taskId)
-+}
-\ No newline at end of file
-diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/screens/Download/index.tsx lx/src/screens/Download/index.tsx
---- lx-music-mobile-master/src/screens/Download/index.tsx	1970-01-01 08:00:00.000000000 +0800
-+++ lx/src/screens/Download/index.tsx	2026-03-16 14:58:56.000000000 +0800
-@@ -0,0 +1,49 @@
-+import { View, Text, StyleSheet } from 'react-native'
-+import { useI18n } from '@/lang'
-+import { useTheme } from '@/theme'
-+import List from '@/components/DownloadList/List'
-+
-+export default () => {
-+  const theme = useTheme()
-+  const t = useI18n()
-+
-+  const handleItemPress = (item: LX.Download.ListItem) => {
-+    // 处理下载项点击事件
-+    console.log('Download item pressed:', item)
-+  }
-+
-+  const handleItemLongPress = (item: LX.Download.ListItem) => {
-+    // 处理下载项长按事件
-+    console.log('Download item long pressed:', item)
-+  }
-+
-+  return (
-+    <View style={[styles.container, { backgroundColor: theme['main-background-color'] }]}>
-+      <View style={styles.header}>
-+        <Text style={[styles.headerTitle, { color: theme['main-font-color'] }]}>
-+          {t('download_title')}
-+        </Text>
-+      </View>
-+      <List
-+        onItemPress={handleItemPress}
-+        onItemLongPress={handleItemLongPress}
-+      />
-+    </View>
-+  )
-+}
-+
-+const styles = StyleSheet.create({
-+  container: {
-+    flex: 1,
-+  },
-+  header: {
-+    paddingHorizontal: 15,
-+    paddingVertical: 10,
-+    borderBottomWidth: 1,
-+    borderBottomColor: '#f0f0f0',
-+  },
-+  headerTitle: {
-+    fontSize: 16,
-+    fontWeight: 'bold',
-+  },
-+})
-\ No newline at end of file
-diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/screens/Home/Vertical/Main.tsx lx/src/screens/Home/Vertical/Main.tsx
---- lx-music-mobile-master/src/screens/Home/Vertical/Main.tsx	2026-02-16 20:13:37.000000000 +0800
-+++ lx/src/screens/Home/Vertical/Main.tsx	2026-03-16 18:45:55.000000000 +0800
-@@ -5,6 +5,7 @@
- import Mylist from '../Views/Mylist'
- import Leaderboard from '../Views/Leaderboard'
- import Setting from '../Views/Setting'
-+import Download from '../Views/Download'
- import commonState, { type InitState as CommonState } from '@/store/common/state'
+ import Progress from '@/components/player/ProgressBar'
+ import Status from './Status'
+@@ -8,6 +9,9 @@
  import { createStyle } from '@/utils/tools'
- import PagerView, { type PageScrollStateChangedNativeEvent, type PagerViewOnPageSelectedEvent } from 'react-native-pager-view'
-@@ -178,12 +179,49 @@
-   return visible ? component : null
- }
+ import Text from '@/components/common/Text'
+ import { useBufferProgress } from '@/plugins/player'
++import { usePlayerMusicInfo } from '@/store/player/hook'
++import { Icon } from '@/components/common/Icon'
++import { toast } from '@/utils/tools'
  
-+const DownloadPage = () => {
-+  const [visible, setVisible] = useState(commonState.navActiveId == 'nav_download')
-+  const component = useMemo(() => <Download />, [])
-+  useEffect(() => {
-+    let currentId: CommonState['navActiveId'] = commonState.navActiveId
-+    const handleNavIdUpdate = (id: CommonState['navActiveId']) => {
-+      currentId = id
-+      if (id == 'nav_download') {
-+        requestAnimationFrame(() => {
-+          setVisible(true)
-+        })
-+      }
-+    }
-+    const handleHide = () => {
-+      if (currentId != 'nav_setting') return
-+      setVisible(false)
-+    }
-+    const handleConfigUpdated = (keys: Array<keyof LX.AppSetting>) => {
-+      if (keys.some(k => hideKeys.includes(k))) handleHide()
-+    }
-+    global.state_event.on('navActiveIdUpdated', handleNavIdUpdate)
-+    global.state_event.on('themeUpdated', handleHide)
-+    global.state_event.on('languageChanged', handleHide)
-+    global.state_event.on('configUpdated', handleConfigUpdated)
-+
-+    return () => {
-+      global.state_event.off('navActiveIdUpdated', handleNavIdUpdate)
-+      global.state_event.off('themeUpdated', handleHide)
-+      global.state_event.off('languageChanged', handleHide)
-+      global.state_event.on('configUpdated', handleConfigUpdated)
-+    }
-+  }, [])
-+
-+  return visible ? component : null
-+}
-+
- const viewMap = {
-   nav_search: 0,
-   nav_songlist: 1,
-   nav_top: 2,
-   nav_love: 3,
-   nav_setting: 4,
-+  nav_download: 5,
- }
- const indexMap = [
-   'nav_search',
-@@ -191,6 +229,7 @@
-   'nav_top',
-   'nav_love',
-   'nav_setting',
-+  'nav_download',
- ] as const
+ // const FONT_SIZE = 13
  
- const Main = () => {
-@@ -289,6 +328,9 @@
-       <View collapsable={false} key="nav_setting" style={styles.pageStyle}>
-         <SettingPage />
-       </View>
-+      <View collapsable={false} key="nav_download" style={styles.pageStyle}>
-+        <DownloadPage />
-+      </View>
-       {/* <View collapsable={false} key="nav_search" style={styles.pageStyle}>
-         <Search />
-       </View>
-diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/screens/Home/Views/Mylist/MusicList/ListMenu.tsx lx/src/screens/Home/Views/Mylist/MusicList/ListMenu.tsx
---- lx-music-mobile-master/src/screens/Home/Views/Mylist/MusicList/ListMenu.tsx	2026-02-16 20:13:37.000000000 +0800
-+++ lx/src/screens/Home/Views/Mylist/MusicList/ListMenu.tsx	2026-03-16 18:29:07.000000000 +0800
-@@ -3,6 +3,7 @@
- import Menu, { type Menus, type MenuType, type Position } from '@/components/common/Menu'
- import { hasDislike } from '@/core/dislikeList'
- import { existsFile } from '@/utils/fs'
-+import { addMusicToDownloadList } from '@/core/download'
+@@ -22,7 +26,28 @@
+   return <Text color={theme['c-500']}>{timeStr}</Text>
+ })
  
- export interface SelectInfo {
-   musicInfo: LX.Music.MusicInfo
-@@ -64,7 +65,7 @@
-     const menu = [
-       { action: 'play', label: t('play') },
-       { action: 'playLater', label: t('play_later') },
--      // { action: 'download', label: '下载' },
-+      { action: 'download', label: 'download' },
-       { action: 'add', label: t('add_to') },
-       { action: 'move', label: t('move_to') },
-       { action: 'changePosition', label: t('change_position') },
-@@ -102,6 +103,13 @@
-         props.onPlayLater(selectInfo)
- 
-         break
-+      case 'download':
-+        // 添加下载功能
-+        // 对于本地音乐，我们不提供下载功能
-+        if (selectInfo.musicInfo.source !== 'local') {
-+          void addMusicToDownloadList(selectInfo.musicInfo)
-+        }
-+        break
-       case 'add':
-         props.onAdd(selectInfo)
-         // isMoveRef.current = false
-diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/screens/Home/Views/Setting/Main.tsx lx/src/screens/Home/Views/Setting/Main.tsx
---- lx-music-mobile-master/src/screens/Home/Views/Setting/Main.tsx	2026-02-16 20:13:37.000000000 +0800
-+++ lx/src/screens/Home/Views/Setting/Main.tsx	2026-03-16 18:03:58.000000000 +0800
-@@ -10,6 +10,7 @@
- import Other from './settings/Other'
- import Version from './settings/Version'
- import About from './settings/About'
-+import DownloadPathSetting from '@/screens/Setting/DownloadPathSetting'
- 
- export const SETTING_SCREENS = [
-   'basic',
-@@ -22,6 +23,7 @@
-   'other',
-   'version',
-   'about',
-+  'download_path',
- ] as const
- 
- export type SettingScreenIds = typeof SETTING_SCREENS[number]
-@@ -57,6 +59,7 @@
-       case 'other': return <Other />
-       case 'version': return <Version />
-       case 'about': return <About />
-+      case 'download_path': return <DownloadPathSetting />
-       case 'basic':
-       default: return <Basic />
-     }
-diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/screens/Setting/DownloadPathSetting.tsx lx/src/screens/Setting/DownloadPathSetting.tsx
---- lx-music-mobile-master/src/screens/Setting/DownloadPathSetting.tsx	1970-01-01 08:00:00.000000000 +0800
-+++ lx/src/screens/Setting/DownloadPathSetting.tsx	2026-03-16 16:11:15.000000000 +0800
-@@ -0,0 +1,104 @@
-+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native'
-+import { useI18n } from '@/lang'
-+import { useTheme } from '@/theme'
-+import { getDownloadPath, setDownloadPath, resetToDefaultDownloadPath } from '@/utils/downloadPath'
-+import { existsFile, selectManagedFolder } from '@/utils/fs'
-+import { useEffect, useState } from 'react'
-+
-+export default () => {
++const CopyUrlButton = () => {
 +  const theme = useTheme()
-+  const t = useI18n()
-+  const [currentPath, setCurrentPath] = useState<string>('')
-+
-+  useEffect(() => {
-+    const loadPath = async () => {
-+      const path = await getDownloadPath()
-+      setCurrentPath(path)
-+    }
-+    loadPath()
-+  }, [])
-+
-+  const handleSelectCustomPath = async () => {
-+    try {
-+      // 在Android上请求用户选择一个目录
-+      const selectedPath = await selectManagedFolder(true)
-+      if (selectedPath) {
-+        await setDownloadPath(selectedPath)
-+        setCurrentPath(selectedPath)
-+        Alert.alert(t('setting_toast'), t('download_path_updated'))
-+      }
-+    } catch (error: any) {
-+      console.error('选择下载路径失败:', error)
-+      Alert.alert(t('setting_toast'), t('download_path_update_failed') + error.message)
-+    }
-+  }
-+
-+  const handleResetToDefault = async () => {
-+    try {
-+      await resetToDefaultDownloadPath()
-+      const defaultPath = await getDownloadPath()
-+      setCurrentPath(defaultPath)
-+      Alert.alert(t('setting_toast'), t('download_path_reset_success'))
-+    } catch (error: any) {
-+      console.error('重置下载路径失败:', error)
-+      Alert.alert(t('setting_toast'), t('download_path_reset_failed') + error.message)
++  const { url } = usePlayerMusicInfo()
++  
++  const handleCopyUrl = () => {
++    if (url) {
++      Clipboard.setString(url)
++      toast('歌曲链接已复制到剪贴板')
++    } else {
++      toast('暂无歌曲链接')
 +    }
 +  }
 +
 +  return (
-+    <View style={[styles.container, { backgroundColor: theme['main-background-color'] }]}>
-+      <View style={styles.settingItem}>
-+        <Text style={[styles.label, { color: theme['main-font-color'] }]}>
-+          {t('download_current_path')}
-+        </Text>
-+        <Text style={[styles.value, { color: theme['main-subtitle_font-color'] }]} numberOfLines={2}>
-+          {currentPath}
-+        </Text>
-+      </View>
-+
-+      <TouchableOpacity style={styles.button} onPress={handleSelectCustomPath}>
-+        <Text style={styles.buttonText}>{t('download_select_custom_path')}</Text>
-+      </TouchableOpacity>
-+
-+      <TouchableOpacity style={[styles.button, styles.resetButton]} onPress={handleResetToDefault}>
-+        <Text style={[styles.buttonText, styles.resetButtonText]}>{t('download_reset_to_default')}</Text>
-+      </TouchableOpacity>
-+    </View>
++    <TouchableOpacity onPress={handleCopyUrl} style={styles.copyButton}>
++      <Icon name="link" color={theme['c-primary-font']} size={16} />
++    </TouchableOpacity>
 +  )
 +}
 +
-+const styles = StyleSheet.create({
-+  container: {
-+    flex: 1,
-+    padding: 15,
+ export default () => {
++  const theme = useTheme()
+   const { maxPlayTimeStr, nowPlayTimeStr, progress, maxPlayTime } = useProgress()
+   const buffered = useBufferProgress()
+ 
+@@ -37,6 +62,7 @@
+           <Status />
+         </View>
+         <PlayTimeMax timeStr={maxPlayTimeStr} />
++        <CopyUrlButton />
+       </View>
+     </>
+   )
+@@ -62,4 +88,8 @@
+     paddingLeft: 10,
+     paddingRight: 10,
+   },
++  copyButton: {
++    padding: 5,
++    marginLeft: 5,
 +  },
-+  settingItem: {
-+    marginBottom: 20,
-+  },
-+  label: {
-+    fontSize: 16,
-+    marginBottom: 5,
-+  },
-+  value: {
-+    fontSize: 14,
-+    lineHeight: 20,
-+  },
-+  button: {
-+    backgroundColor: '#007AFF',
-+    padding: 15,
-+    borderRadius: 8,
-+    alignItems: 'center',
-+    marginBottom: 10,
-+  },
-+  buttonText: {
-+    color: 'white',
-+    fontSize: 16,
-+    fontWeight: '500',
-+  },
-+  resetButton: {
-+    backgroundColor: '#FF3B30',
-+  },
-+  resetButtonText: {
-+    color: 'white',
-+  },
-+})
-\ No newline at end of file
-diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/store/download/action.ts lx/src/store/download/action.ts
---- lx-music-mobile-master/src/store/download/action.ts	1970-01-01 08:00:00.000000000 +0800
-+++ lx/src/store/download/action.ts	2026-03-16 14:56:22.000000000 +0800
-@@ -0,0 +1,23 @@
-+import downloadState from './state'
-+import { LIST_IDS } from '@/config/constant'
-+import { getDownloadList } from '@/core/download'
-+
-+export const setDownloadList = (list: LX.Download.ListItem[]) => {
-+  downloadState.list = list
-+}
-+
-+export const refreshDownloadList = async() => {
-+  downloadState.isRefreshing = true
-+  try {
-+    const list = getDownloadList()
-+    setDownloadList(list)
-+  } finally {
-+    downloadState.isRefreshing = false
-+  }
-+}
-+
-+// 初始化下载列表
-+export const initDownloadList = async() => {
-+  const list = getDownloadList()
-+  setDownloadList(list)
-+}
-\ No newline at end of file
-diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/store/download/hook.ts lx/src/store/download/hook.ts
---- lx-music-mobile-master/src/store/download/hook.ts	1970-01-01 08:00:00.000000000 +0800
-+++ lx/src/store/download/hook.ts	2026-03-16 14:57:24.000000000 +0800
-@@ -0,0 +1,33 @@
-+import { useEffect, useState } from 'react'
-+import { LIST_IDS } from '@/config/constant'
-+import downloadState from './state'
-+import { initDownloadList } from './action'
-+
-+declare const app_event: import('@/event/appEvent').AppEventTypes
-+
-+export const useDownloadList = () => {
-+  const [list, setList] = useState<LX.Download.ListItem[]>(downloadState.list)
-+  const [isRefreshing, setIsRefreshing] = useState(downloadState.isRefreshing)
-+
-+  useEffect(() => {
-+    const handleUpdate = () => {
-+      setList([...downloadState.list])
-+      setIsRefreshing(downloadState.isRefreshing)
-+    }
-+
-+    // 初始化下载列表
-+    void initDownloadList()
-+
-+    // 监听下载列表更新事件
-+    app_event.on('downloadListUpdate', handleUpdate)
-+
-+    return () => {
-+      app_event.off('downloadListUpdate', handleUpdate)
-+    }
-+  }, [])
-+
-+  return {
-+    list,
-+    isRefreshing,
-+  }
-+}
-\ No newline at end of file
-diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/store/download/state.ts lx/src/store/download/state.ts
---- lx-music-mobile-master/src/store/download/state.ts	1970-01-01 08:00:00.000000000 +0800
-+++ lx/src/store/download/state.ts	2026-03-16 14:56:13.000000000 +0800
-@@ -0,0 +1,23 @@
-+import { LIST_IDS } from '@/config/constant'
-+import { getDownloadList } from '@/core/download'
-+
-+export interface State {
-+  list: LX.Download.ListItem[]
-+  isRefreshing: boolean
-+}
-+
-+const state: State = {
-+  list: [],
-+  isRefreshing: false,
-+}
-+
-+export const resetState = () => {
-+  state.list = []
-+  state.isRefreshing = false
-+}
-+
-+export const initList = async() => {
-+  state.list = getDownloadList()
-+}
-+
-+export default state
-diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/utils/downloadPath.ts lx/src/utils/downloadPath.ts
---- lx-music-mobile-master/src/utils/downloadPath.ts	1970-01-01 08:00:00.000000000 +0800
-+++ lx/src/utils/downloadPath.ts	2026-03-16 16:06:44.000000000 +0800
-@@ -0,0 +1,64 @@
-+import { privateStorageDirectoryPath, externalStorageDirectoryPath, existsFile, mkdir } from '@/utils/fs'
-+import { getData, saveData } from '@/plugins/storage'
-+
-+// 默认下载路径键
-+const DOWNLOAD_PATH_KEY = 'download_path'
-+
-+/**
-+ * 获取当前下载路径
-+ * 如果用户没有设置自定义路径，则返回默认的沙盒路径
-+ */
-+export const getDownloadPath = async (): Promise<string> => {
-+  try {
-+    // 尝试从存储中获取用户设置的下载路径
-+    const customPath = await getData<string>(DOWNLOAD_PATH_KEY)
-+    
-+    if (customPath && typeof customPath === 'string') {
-+      // 检查自定义路径是否存在，如果不存在则尝试创建
-+      const pathExists = await existsFile(customPath)
-+      if (pathExists) {
-+        return customPath
-+      } else {
-+        // 如果自定义路径不存在，尝试创建
-+        try {
-+          await mkdir(customPath)
-+          return customPath
-+        } catch (error) {
-+          console.warn('自定义下载路径不可用，使用默认路径:', error)
-+        }
-+      }
-+    }
-+  } catch (error) {
-+    console.warn('获取下载路径失败，使用默认路径:', error)
-+  }
-+
-+  // 返回默认的沙盒路径
-+  const defaultPath = `${privateStorageDirectoryPath}/Music`
-+  return defaultPath
-+}
-+
-+/**
-+ * 设置下载路径
-+ */
-+export const setDownloadPath = async (path: string): Promise<void> => {
-+  // 验证路径是否可写
-+  try {
-+    const pathExists = await existsFile(path)
-+    if (!pathExists) {
-+      await mkdir(path)
-+    }
-+    
-+    // 保存到存储
-+    await saveData(DOWNLOAD_PATH_KEY, path)
-+  } catch (error) {
-+    console.error('设置下载路径失败:', error)
-+    throw error
-+  }
-+}
-+
-+/**
-+ * 重置为默认下载路径
-+ */
-+export const resetToDefaultDownloadPath = async (): Promise<void> => {
-+  await saveData(DOWNLOAD_PATH_KEY, null)
-+}
-\ No newline at end of file
+ })
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/store/player/state.ts lx/src/store/player/state.ts
+--- lx-music-mobile-master/src/store/player/state.ts	2026-02-16 20:13:37.000000000 +0800
++++ lx/src/store/player/state.ts	2026-03-17 09:40:25.000000000 +0800
+@@ -57,7 +57,7 @@
+     rlrc: null,
+     lxlrc: null,
+     rawlrc: null,
+-    // url: null,
++    url: null,
+     name: '',
+     singer: '',
+     album: '',
+diff -urN -x '*.json' -x '*.md' -x .DS_Store -x '*.patch' -x .gradle lx-music-mobile-master/src/types/player.d.ts lx/src/types/player.d.ts
+--- lx-music-mobile-master/src/types/player.d.ts	2026-02-16 20:13:37.000000000 +0800
++++ lx/src/types/player.d.ts	2026-03-17 09:39:44.000000000 +0800
+@@ -11,7 +11,7 @@
+         rlrc: string | null
+         lxlrc: string | null
+         rawlrc: string | null
+-        // url: string | null
++        url: string | null
+         name: string
+         singer: string
+         album: string
